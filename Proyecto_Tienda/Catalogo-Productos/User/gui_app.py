@@ -1,5 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
+from Model.producto_dao import crear_tabla
+from Model.producto_dao import Productos, guardar, listar, editar, eliminar
 
 def barra_menu(root):
     barra_menu = tk.Menu(root)
@@ -8,7 +10,7 @@ def barra_menu(root):
     menu_inicio = tk.Menu(barra_menu, tearoff=0)
     barra_menu.add_cascade(label='Inicio', menu= menu_inicio)
 
-    menu_inicio.add_command(label='Crear registro en DB')
+    menu_inicio.add_command(label='Crear registro en DB', command=crear_tabla)
     menu_inicio.add_command(label='Eliminar registro en DB')
     menu_inicio.add_command(label='Salir', command = root.destroy)
 
@@ -21,6 +23,7 @@ class Frame(tk.Frame):
         self.root = root
         self.pack()
         self.config(width=480, height=320)
+        self.id = None
 
         self.campos_productos()
         self.desabilitar_campos()
@@ -28,7 +31,7 @@ class Frame(tk.Frame):
 
     def campos_productos(self):
         #Labels de cada campo
-        self.label_nombre=tk.Label(self, text = 'Nombre:')
+        self.label_nombre=tk.Label(self, text = 'Descripcion:')
         self.label_nombre.config(font = ('Arial', 12, 'bold'))
         self.label_nombre.grid(row = 0, column = 0, padx = 10, pady = 10)
 
@@ -82,6 +85,7 @@ class Frame(tk.Frame):
         self.boton_cancelar.config(state='normal')
 
     def desabilitar_campos(self):
+        self.id=None
         self.mi_nombre.set('')
         self.mi_precio.set('')
         self.mi_cantidad.set('')
@@ -95,32 +99,71 @@ class Frame(tk.Frame):
 
     def guardar_datos(self):
 
+        productos = Productos(
+            self.mi_nombre.get(),
+            self.mi_precio.get(),
+            self.mi_cantidad.get(),
+        )
+
+        if self.id == None:
+            guardar(productos)
+        else:
+            editar(productos, self.id)
+
+        self.tabla_productos()
+
         self.desabilitar_campos()
 
     def tabla_productos(self):
-
+        #Recuperar la lista de Productos
+        self.Lista_Productos = listar()
+        self.Lista_Productos.reverse()
+        
         self.tabla = ttk.Treeview(self,
         column = ('Nombre', 'Precio', 'Cantidad'))
-        self.tabla.grid(row=4, column=0, columnspan=4)
+        self.tabla.grid(row=4, column=0, columnspan=4, sticky = 'nse')
+
+        #Scrollbar para la tabla si exede 10 registros
+        self.scroll = ttk.Scrollbar(self,
+        orient = 'vertical', command = self.tabla.yview)
+        self.scroll.grid(row = 4, column = 4, sticky = 'nse')
+        self.tabla.configure(yscrollcommand = self.scroll.set)
 
         self.tabla.heading('#0', text='ID')
-        self.tabla.heading('#1', text='NOMBRE')
+        self.tabla.heading('#1', text='DESCRIPCION')
         self.tabla.heading('#2', text='PRECIO')
         self.tabla.heading('#3', text='CANTIDAD')
 
-        self.tabla.insert('',0,text='1', values= ('Arina Pan', '$12000', '20'))
+        #Iterar la lista de peliculas
+        for p in self.Lista_Productos:
+            self.tabla.insert('',0,text=p[0], values= (p[1], p[2], p[3]))
 
         #Boton Editar
-        self.boton_editar = tk.Button(self, text = "Editar")
+        self.boton_editar = tk.Button(self, text = "Editar", command = self.editar_datos)
         self.boton_editar.config(width = 20, font = ('Arial', 12, 'bold'), fg = '#fcf9f3', bg = '#35ae0b', cursor =  'hand2', activebackground= '#38a512')
         self.boton_editar.grid(row = 5, column = 0, padx = 10, pady = 10)
 
         #Boton Eliminar
-        self.boton_eliminar = tk.Button(self, text = "Eliminar")
+        self.boton_eliminar = tk.Button(self, text = "Eliminar", command = self.eliminar_datos)
         self.boton_eliminar.config(width = 20, font = ('Arial', 12, 'bold'), fg = '#fcf9f3', bg = '#e30b3c', cursor =  'hand2', activebackground= '#d40e3b')
         self.boton_eliminar.grid(row = 5, column = 1, padx = 10, pady = 10)
 
+    def editar_datos(self):
+        self.id = self.tabla.item(self.tabla.selection())['text']
+        self.nombre_producto = self.tabla.item(self.tabla.selection())['values'][0]
+        self.precio_producto = self.tabla.item(self.tabla.selection())['values'][1]
+        self.cantidad_producto = self.tabla.item(self.tabla.selection())['values'][2]
 
+        self.habilitar_campos()
+        self.entry_nombre.insert(0, self.nombre_producto)
+        self.entry_precio.insert(0, self.precio_producto)
+        self.entry_cantidad.insert(0, self.cantidad_producto)
+    
+    def eliminar_datos(self):
+        self.id = self.tabla.item(self.tabla.selection())['text']
+        eliminar(self.id)
+        self.tabla_productos()
+        self.id = None
 
 
 
