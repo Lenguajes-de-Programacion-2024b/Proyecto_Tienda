@@ -1,13 +1,10 @@
 from .conexion_db import ConexionDB
 
 def crear_tabla():
-    # Instanciar la conexión
-    conexion = ConexionDB()  # Crear instancia de la conexión
+    conexion = ConexionDB()
     
-    # Utilizar el cursor directamente desde la conexión
-    cursor = conexion.cursor  # Accede al cursor correctamente
+    cursor = conexion.cursor 
     
-    # Crear la tabla si no existe
     cursor.execute('''
         IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Productos')
         BEGIN
@@ -20,7 +17,6 @@ def crear_tabla():
         END
     ''')
     
-    # Guardar los cambios y cerrar la conexión
     conexion.cerrar()
 
 class Productos:

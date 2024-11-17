@@ -1,5 +1,5 @@
 import tkinter as tk
-from User.gui_app import Frame, barra_menu
+from User.gui_app import ProductosFrame, barra_menu
 
 
 def main():
@@ -10,7 +10,7 @@ def main():
     
     barra_menu(root)
 
-    app = Frame(root = root)
+    app = ProductosFrame(root = root)
 
     app.mainloop()
 
