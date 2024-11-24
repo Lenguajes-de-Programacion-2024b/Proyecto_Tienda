@@ -1,4 +1,5 @@
 from .conexion_db import ConexionDB
+from datetime import datetime, timedelta
 
 def crear_tabla_ventas():
     conexion = ConexionDB()
@@ -104,3 +105,33 @@ def eliminar_venta(id):
         conexion.cursor.execute(sql_actualizar_stock, (cantidad_vendida, producto_id))
 
     conexion.cerrar()
+
+def listar_ventas_por_rango(fecha_inicio, fecha_fin):
+    conexion = ConexionDB()
+    sql = '''
+        SELECT v.id, p.nombre, v.cantidad, v.fecha, v.total_vendido
+        FROM Ventas v
+        INNER JOIN Productos p ON v.producto_id = p.id
+        WHERE v.fecha BETWEEN ? AND ?
+    '''
+    conexion.cursor.execute(sql, (fecha_inicio, fecha_fin))
+    ventas = conexion.cursor.fetchall()
+    conexion.cerrar()
+    return ventas
+
+def obtener_rango(periodo, fecha=None):
+    if periodo == "diario":
+        if fecha:
+            fecha_inicio = datetime.strptime(fecha, "%Y-%m-%d")
+            fecha_fin = fecha_inicio + timedelta(days=1)
+        else:
+            raise ValueError("Se requiere una fecha para el informe diario.")
+    elif periodo == "semanal":
+        fecha_inicio = datetime.strptime(fecha, "%Y-%m-%d")
+        fecha_fin = fecha_inicio + timedelta(days=7)
+    elif periodo == "mensual":
+        fecha_inicio = datetime.strptime(fecha, "%Y-%m-%d")
+        fecha_fin = (fecha_inicio.replace(day=1) + timedelta(days=31)).replace(day=1)
+    else:
+        raise ValueError("Periodo no reconocido.")
+    return fecha_inicio.strftime("%Y-%m-%d"), fecha_fin.strftime("%Y-%m-%d")

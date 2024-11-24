@@ -86,26 +86,60 @@ class ProductosFrame(tk.Frame):
         self.desabilitar_campos()
 
     def tabla_productos(self):
-        # Recuperar la lista de productos
+        # Destruir cualquier tabla previa para evitar duplicados
+        for widget in self.winfo_children():
+            if isinstance(widget, ttk.Treeview):
+                widget.destroy()
+
+        # Crear el estilo para la tabla con bordes y centrado
+        style = ttk.Style()
+        style.configure(
+            "Treeview",
+            borderwidth=1,
+            relief="solid",
+            rowheight=30,  # Altura de las filas
+            font=('Arial', 12)  # Fuente de los datos en la tabla
+        )
+        style.configure(
+            "Treeview.Heading",
+            font=('Arial', 12, 'bold'),  # Fuente de los encabezados
+            height=30  # Altura de los encabezados
+        )
+        style.map(
+            "Treeview",
+            background=[("selected", "#0078d7")],  # Fondo azul para la fila seleccionada
+            foreground=[("selected", "white")]    # Texto blanco para la fila seleccionada
+        )
+
+        # Crear la tabla con columnas ajustadas
         self.Lista_Productos = listar()
-        self.Lista_Productos.reverse()
+        self.tabla = ttk.Treeview(
+            self, columns=('Descripcion', 'Precio', 'Cantidad'), style="Treeview"
+        )
+        self.tabla.grid(row=4, column=0, columnspan=3, sticky='nsew', padx=(10, 0))  # Espacio izquierdo
 
-        self.tabla = ttk.Treeview(self, columns=('Nombre', 'Precio', 'Cantidad'))
-        self.tabla.grid(row=4, column=0, columnspan=4, sticky='nse')
+        # Encabezados de las columnas
+        self.tabla.heading('#0', text='ID', anchor='center')
+        self.tabla.heading('#1', text='Descripcion', anchor='center')
+        self.tabla.heading('#2', text='Precio', anchor='center')
+        self.tabla.heading('#3', text='Cantidad', anchor='center')
 
-        # Scrollbar para la tabla si excede 10 registros
-        self.scroll = ttk.Scrollbar(self, orient='vertical', command=self.tabla.yview)
-        self.scroll.grid(row=4, column=4, sticky='nse')
-        self.tabla.configure(yscrollcommand=self.scroll.set)
+        # Configurar las columnas con más espacio y centrado
+        self.tabla.column('#0', width=100, anchor='center')  # Columna ID
+        self.tabla.column('#1', width=200, anchor='center')  # Descripcion
+        self.tabla.column('#2', width=100, anchor='center')  # Precio
+        self.tabla.column('#3', width=100, anchor='center')  # Cantidad
 
-        self.tabla.heading('#0', text='ID')
-        self.tabla.heading('#1', text='DESCRIPCION')
-        self.tabla.heading('#2', text='PRECIO')
-        self.tabla.heading('#3', text='CANTIDAD')
-
-        # Insertar productos en la tabla
+        # Insertar las filas con formato
         for p in self.Lista_Productos:
-            self.tabla.insert('', 0, text=p[0], values=(p[1], p[2], p[3]))
+            # Formatear el precio con separador de miles y sin decimales
+            precio_formateado = f"${int(float(p[2])):,.0f}".replace(',', '.')
+            self.tabla.insert('', 'end', text=p[0], values=(p[1], precio_formateado, p[3]))
+
+        # Agregar scroll vertical
+        self.scroll = ttk.Scrollbar(self, orient='vertical', command=self.tabla.yview)
+        self.tabla.configure(yscrollcommand=self.scroll.set)
+        self.scroll.grid(row=4, column=3, sticky='ns')
 
         # Botón Editar
         self.boton_editar = tk.Button(self, text="Editar", command=self.editar_datos)
@@ -122,7 +156,8 @@ class ProductosFrame(tk.Frame):
             # Obtener el elemento seleccionado en la tabla
             self.id = self.tabla.item(self.tabla.selection())['text']
             self.nombre_producto = self.tabla.item(self.tabla.selection())['values'][0]
-            self.precio_producto = self.tabla.item(self.tabla.selection())['values'][1]
+            precio_formateado = self.tabla.item(self.tabla.selection())['values'][1]
+            self.precio_producto = precio_formateado.replace('$', '').replace('.', '').replace(',', '.')
             self.cantidad_producto = self.tabla.item(self.tabla.selection())['values'][2]
 
             # Habilitar campos para editar
@@ -135,6 +170,20 @@ class ProductosFrame(tk.Frame):
         except IndexError:
             # Controlar el error si no hay selección
             print("No se seleccionó ningún elemento.")
+
+    def guardar_datos(self):
+        try:
+            # Quitar símbolos y convertir a número antes de guardar
+            precio_sin_formato = float(self.mi_precio.get().replace('$', '').replace('.', '').replace(',', '.'))
+            productos = Productos(self.mi_nombre.get(), precio_sin_formato, self.mi_cantidad.get())
+            if self.id is None:
+                guardar(productos)
+            else:
+                editar(productos, self.id)
+            self.tabla_productos()
+            self.desabilitar_campos()
+        except ValueError:
+            print("Error: Asegúrate de ingresar un precio válido.")
 
     def eliminar_datos(self):
         self.id = self.tabla.item(self.tabla.selection())['text']

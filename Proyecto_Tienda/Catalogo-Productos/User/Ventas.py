@@ -17,7 +17,10 @@ class VentasFrame(tk.Frame):
         self.label_producto.grid(row=0, column=0, padx=10, pady=10)
 
         self.producto_id = tk.StringVar()
-        self.combobox_producto = ttk.Combobox(self, textvariable=self.producto_id, state="readonly")
+
+        # Ajustar la fuente del combobox
+        self.option_add("*TCombobox*Listbox*Font", ('Arial', 12))  # Cambia la fuente de la lista desplegable
+        self.combobox_producto = ttk.Combobox(self, textvariable=self.producto_id, state="readonly", font=('Arial', 12))
         self.actualizar_productos()
         self.combobox_producto.grid(row=0, column=1, padx=10, pady=10)
 
@@ -62,37 +65,74 @@ class VentasFrame(tk.Frame):
             messagebox.showerror("Error", f"Ocurrió un error: {e}")
 
     def tabla_ventas(self):
+        # Destruir cualquier tabla previa para evitar duplicados
         for widget in self.winfo_children():
             if isinstance(widget, ttk.Treeview):
                 widget.destroy()
 
+        # Crear el estilo para la tabla con bordes y centrado
+        style = ttk.Style()
+        style.configure(
+            "Treeview",
+            borderwidth=1,
+            relief="solid",
+            rowheight=30,  # Altura de las filas
+            font=('Arial', 12),  # Fuente de los datos en la tabla
+        )
+        style.configure(
+            "Treeview.Heading",
+            font=('Arial', 12, 'bold'),  # Fuente de los encabezados
+            height=30  # Altura de los encabezados
+        )
+        style.map(
+            "Treeview",
+            background=[("selected", "#0078d7")],  # Fondo azul para la fila seleccionada
+            foreground=[("selected", "white")]    # Texto blanco para la fila seleccionada
+        )
+
+        # Crear la tabla con columnas ajustadas
         self.Lista_Ventas = listar_ventas()
-        self.tabla = ttk.Treeview(self, columns=('Producto', 'Cantidad', 'Fecha', 'Total Vendido'))
-        self.tabla.grid(row=3, column=0, columnspan=2, sticky='nsew')
+        self.tabla = ttk.Treeview(
+            self, columns=('Producto', 'Cantidad', 'Fecha', 'Total Vendido'), style="Treeview"
+        )
+        self.tabla.grid(row=3, column=0, columnspan=2, sticky='nsew', padx=(10, 0))  # Espacio izquierdo
 
-        self.tabla.heading('#0', text='ID')
-        self.tabla.heading('#1', text='Producto')
-        self.tabla.heading('#2', text='Cantidad')
-        self.tabla.heading('#3', text='Fecha')
-        self.tabla.heading('#4', text='Total Vendido')
+        # Encabezados de las columnas
+        self.tabla.heading('#0', text='ID', anchor='center')
+        self.tabla.heading('#1', text='Producto', anchor='center')
+        self.tabla.heading('#2', text='Cantidad', anchor='center')
+        self.tabla.heading('#3', text='Fecha', anchor='center')
+        self.tabla.heading('#4', text='Total Vendido', anchor='center')
 
+        # Configurar las columnas con más espacio y centrado
+        self.tabla.column('#0', width=100, anchor='center')  # Columna ID
+        self.tabla.column('#1', width=200, anchor='center')  # Producto
+        self.tabla.column('#2', width=100, anchor='center')  # Cantidad
+        self.tabla.column('#3', width=150, anchor='center')  # Fecha
+        self.tabla.column('#4', width=150, anchor='center')  # Total Vendido
+
+        # Insertar las filas con formato
         for v in self.Lista_Ventas:
-            fecha_formateada = v[3].strftime("%d/%m/%y %H:%M")
-            self.tabla.insert('', 'end', text=v[0], values=(v[1], v[2], fecha_formateada, f"${v[4]:.2f}"))
+            fecha_formateada = v[3].strftime("%d/%m/%Y")  # Formatear para mostrar solo la fecha
+            total_vendido = f"${v[4]:,.0f}".replace(',', '.')  # Formatear con separador de miles y sin decimales
+            self.tabla.insert('', 'end', text=v[0], values=(v[1], v[2], fecha_formateada, total_vendido))
 
+        # Agregar scroll vertical
         self.scroll = ttk.Scrollbar(self, orient='vertical', command=self.tabla.yview)
         self.tabla.configure(yscrollcommand=self.scroll.set)
         self.scroll.grid(row=3, column=2, sticky='ns')
 
-        # Boton Eliminar, ahora abajo de la tabla
+        # Botón Eliminar, ahora debajo de la tabla
         self.boton_eliminar_venta = tk.Button(self, text="Eliminar Venta", command=self.eliminar_venta)
-        self.boton_eliminar_venta.config(width=20, font=('Arial', 12, 'bold'), fg='#fcf9f3', bg='#e30b3c', cursor='hand2')
+        self.boton_eliminar_venta.config(
+            width=20, font=('Arial', 12, 'bold'), fg='#fcf9f3', bg='#e30b3c', cursor='hand2'
+        )
         self.boton_eliminar_venta.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
 
         # Espacio adicional para ajustar la interfaz
         self.final_frame = tk.Frame(self)
         self.final_frame.grid(row=5, column=0, columnspan=3, pady=10)
-        
+
     def eliminar_venta(self):
         try:
             # Obtener la venta seleccionada en la tabla
