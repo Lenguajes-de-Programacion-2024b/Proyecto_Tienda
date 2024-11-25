@@ -2,7 +2,6 @@ from .conexion_db import ConexionDB
 
 def crear_tabla():
     conexion = ConexionDB()
-    
     cursor = conexion.cursor 
     
     cursor.execute('''
