@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from Model.ventas_dao import Venta, registrar_venta, listar_ventas, listar, eliminar_venta
 
-
 class VentasFrame(tk.Frame):
     def __init__(self, root=None):
         super().__init__(root)
