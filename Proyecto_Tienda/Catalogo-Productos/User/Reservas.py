@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from Model.reserva_dao import Reserva, registrar_reserva, listar_reservas, listar, eliminar_reserva, listar_estados_reserva
+from Model.reserva_dao import Reserva, registrar_reserva, listar_reservas, listar, eliminar_reserva, actualizar_estado_reserva, listar_estados_reserva
+from Model.ventas_dao import Venta, registrar_venta
 
 class ReservasFrame(tk.Frame):
     def __init__(self, root=None):
@@ -9,6 +10,7 @@ class ReservasFrame(tk.Frame):
         self.pack(fill='both', expand=True)
         self.campos_reserva()
         self.tabla_reservas()
+        self.crear_menu_contextual()
 
     def campos_reserva(self):
         # Etiqueta y combobox para Producto
@@ -69,7 +71,21 @@ class ReservasFrame(tk.Frame):
             nueva_reserva = Reserva(producto_id, cantidad, cliente)
             registrar_reserva(nueva_reserva)
 
-            self.tabla_reservas()
+            # Refrescar la tabla y seleccionar automáticamente la nueva reserva
+            self.tabla_reservas()  # Recargar datos en la tabla
+
+            # Obtener el ID de la reserva recién creada
+            lista_reservas = listar_reservas()
+            nueva_reserva_id = lista_reservas[-1][0]  # Asumimos que el último elemento es la nueva reserva
+
+            # Seleccionar automáticamente la nueva reserva en la tabla
+            for item in self.tabla.get_children():
+                if self.tabla.item(item)['text'] == nueva_reserva_id:
+                    self.tabla.selection_set(item)
+                    self.tabla.focus(item)
+                    break
+
+            # Limpiar los campos del formulario
             self.cantidad_reserva.set('')
             self.producto_id.set('')
             self.cliente.set('')
@@ -77,6 +93,52 @@ class ReservasFrame(tk.Frame):
             messagebox.showerror("Error", str(e))
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un error: {e}")
+
+    def cambiar_estado_reserva(self, nuevo_estado_id):
+        try:
+            # Obtener la reserva seleccionada en la tabla
+            reserva_id = self.tabla.item(self.tabla.selection())['text']
+
+            if not reserva_id:
+                raise ValueError("Debe seleccionar una reserva para cambiar su estado.")
+
+            # Llamar a la función del modelo para actualizar el estado
+            actualizar_estado_reserva(reserva_id, nuevo_estado_id)
+
+            # Mensaje según el estado actualizado
+            if nuevo_estado_id == 3:  # Estado Cancelado
+                messagebox.showinfo("Reserva Cancelada", "La reserva fue cancelada y el stock se ha devuelto.")
+            else:
+                messagebox.showinfo("Estado Actualizado", "El estado de la reserva se actualizó correctamente.")
+
+            # Refrescar la tabla de reservas
+            self.refrescar_tabla()
+
+        except IndexError:
+            messagebox.showerror("Error", "Debe seleccionar una reserva para cambiar su estado.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Ocurrió un error: {e}")
+
+    def refrescar_tabla(self):
+        """
+        Refrescar la tabla sin bloquear nuevas interacciones.
+        """
+        # Limpiar la tabla
+        for item in self.tabla.get_children():
+            self.tabla.delete(item)
+
+        # Recargar los datos en la tabla
+        self.lista_reservas = listar_reservas()
+        for r in self.lista_reservas:
+            fecha_formateada = r[4].strftime("%d/%m/%Y")  # Formatear para mostrar solo la fecha
+            self.tabla.insert('', 'end', text=r[0], values=(r[1], r[2], r[3], fecha_formateada, r[5]))
+
+        # Liberar cualquier selección previa si existe
+        if self.tabla.selection():
+            self.tabla.selection_remove(self.tabla.selection())
+
+        # Forzar la actualización de la interfaz
+        self.update_idletasks()
 
     def tabla_reservas(self):
         # Destruir cualquier tabla previa para evitar duplicados
@@ -169,3 +231,29 @@ class ReservasFrame(tk.Frame):
             messagebox.showerror("Error", "Debe seleccionar una reserva para eliminar.")
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un error: {e}")
+    
+    def crear_menu_contextual(self):
+        # Crear el menú
+        self.menu_contextual = tk.Menu(self, tearoff=0)
+        estados = listar_estados_reserva()  # Obtener los estados disponibles desde la base de datos
+
+        # Añadir opciones para cada estado
+        for estado in estados:
+            self.menu_contextual.add_command(
+                label=f"Cambiar a '{estado[1]}'",
+                command=lambda estado_id=estado[0]: self.cambiar_estado_reserva(estado_id)
+            )
+
+        # Asociar evento de clic derecho en la tabla
+        self.tabla.bind("<Button-3>", self.mostrar_menu_contextual)
+
+    def mostrar_menu_contextual(self, event):
+        try:
+            # Seleccionar el elemento debajo del clic derecho
+            item = self.tabla.identify_row(event.y)
+            if item:
+                self.tabla.selection_set(item)
+                self.menu_contextual.post(event.x_root, event.y_root)
+        finally:
+            # Cerrar el menú contextual si no hay selección válida
+            self.menu_contextual.grab_release()

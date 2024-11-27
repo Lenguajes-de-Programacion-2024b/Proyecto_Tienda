@@ -1,5 +1,5 @@
 from .conexion_db import ConexionDB
-from datetime import datetime, timedelta
+from Model.ventas_dao import Venta, registrar_venta
 
 def crear_tabla_reservas():
     conexion = ConexionDB()
@@ -95,29 +95,60 @@ def listar_reservas():
 def eliminar_reserva(id):
     conexion = ConexionDB()
 
-    # Primero, obtenemos la reserva que estamos eliminando
-    consulta_reserva = "SELECT producto_id, cantidad FROM Reservas WHERE id = ?"
+    # Obtener los datos de la reserva que se desea eliminar
+    consulta_reserva = "SELECT producto_id, cantidad, estado_id FROM Reservas WHERE id = ?"
     conexion.cursor.execute(consulta_reserva, (id,))
     reserva = conexion.cursor.fetchone()
 
     if reserva:
         producto_id = reserva[0]
         cantidad_reservada = reserva[1]
+        estado_id = reserva[2]
 
-        # Ahora, eliminamos la reserva
+        # Si el estado no es "Cancelado" (id = 3), devolver el stock
+        if estado_id != 3:
+            sql_actualizar_stock = "UPDATE Productos SET cantidad = cantidad + ? WHERE id = ?"
+            conexion.cursor.execute(sql_actualizar_stock, (cantidad_reservada, producto_id))
+
+        # Eliminar la reserva
         sql_eliminar = "DELETE FROM Reservas WHERE id = ?"
         conexion.cursor.execute(sql_eliminar, (id,))
-
-        # Actualizamos el stock en la tabla Productos
-        sql_actualizar_stock = "UPDATE Productos SET cantidad = cantidad + ? WHERE id = ?"
-        conexion.cursor.execute(sql_actualizar_stock, (cantidad_reservada, producto_id))
 
     conexion.cerrar()
 
 def actualizar_estado_reserva(id, nuevo_estado_id):
     conexion = ConexionDB()
-    sql = "UPDATE Reservas SET estado_id = ? WHERE id = ?"
-    conexion.cursor.execute(sql, (nuevo_estado_id, id))
+
+    # Actualizar el estado de la reserva
+    sql_actualizar_estado = "UPDATE Reservas SET estado_id = ? WHERE id = ?"
+    conexion.cursor.execute(sql_actualizar_estado, (nuevo_estado_id, id))
+
+    # Si el nuevo estado es "Cancelado" (id = 3), devolver el stock
+    if nuevo_estado_id == 3:
+        consulta_reserva = "SELECT producto_id, cantidad FROM Reservas WHERE id = ?"
+        conexion.cursor.execute(consulta_reserva, (id,))
+        reserva = conexion.cursor.fetchone()
+
+        if reserva:
+            producto_id = reserva[0]
+            cantidad_reservada = reserva[1]
+            sql_actualizar_stock = "UPDATE Productos SET cantidad = cantidad + ? WHERE id = ?"
+            conexion.cursor.execute(sql_actualizar_stock, (cantidad_reservada, producto_id))
+
+    # Si el nuevo estado es "Confirmado" (id = 2), registrar como venta
+    elif nuevo_estado_id == 2:
+        consulta_reserva = "SELECT producto_id, cantidad FROM Reservas WHERE id = ?"
+        conexion.cursor.execute(consulta_reserva, (id,))
+        reserva = conexion.cursor.fetchone()
+
+        if reserva:
+            producto_id = reserva[0]
+            cantidad = reserva[1]
+
+            # Crear un objeto Venta y registrarla sin descontar inventario
+            nueva_venta = Venta(producto_id=producto_id, cantidad=cantidad)
+            registrar_venta(nueva_venta, descontar_inventario=False)
+
     conexion.cerrar()
 
 def listar_estados_reserva():
