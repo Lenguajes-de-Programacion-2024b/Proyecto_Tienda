@@ -135,22 +135,7 @@ def actualizar_estado_reserva(id, nuevo_estado_id):
             sql_actualizar_stock = "UPDATE Productos SET cantidad = cantidad + ? WHERE id = ?"
             conexion.cursor.execute(sql_actualizar_stock, (cantidad_reservada, producto_id))
 
-    # Si el nuevo estado es "Confirmado" (id = 2), registrar como venta
-    elif nuevo_estado_id == 2:
-        consulta_reserva = "SELECT producto_id, cantidad FROM Reservas WHERE id = ?"
-        conexion.cursor.execute(consulta_reserva, (id,))
-        reserva = conexion.cursor.fetchone()
-
-        if reserva:
-            producto_id = reserva[0]
-            cantidad = reserva[1]
-
-            # Crear un objeto Venta y registrarla sin descontar inventario
-            nueva_venta = Venta(producto_id=producto_id, cantidad=cantidad)
-            registrar_venta(nueva_venta, descontar_inventario=False)
-
     conexion.cerrar()
-
 def listar_estados_reserva():
     conexion = ConexionDB()
     sql = "SELECT id, descripcion FROM EstadosReservas"

@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from Model.reserva_dao import Reserva, registrar_reserva, listar_reservas, listar, eliminar_reserva, actualizar_estado_reserva, listar_estados_reserva
-from Model.ventas_dao import Venta, registrar_venta
 
 class ReservasFrame(tk.Frame):
     def __init__(self, root=None):
