@@ -2,7 +2,6 @@ import tkinter as tk
 from Model.producto_dao import crear_tabla
 from Model.ventas_dao import crear_tabla_ventas
 from Model.reserva_dao import crear_tabla_reservas
-from Model.Estado_dao import crear_tabla_estados
 from User.Productos import ProductosFrame
 from User.Ventas import VentasFrame
 from User.Informes_ventas import InformeVentas
@@ -27,7 +26,6 @@ def barra_menu(root):
 
     barra_menu.add_cascade(label='Reservas', menu=menu_reserva)
     menu_reserva.add_command(label='Crear tabla reservas en DB', command=crear_tabla_reservas)
-    menu_reserva.add_command(label='Crear tabla estados en DB', command=crear_tabla_estados)
     menu_reserva.add_command(label='Abrir Productos', command=lambda: abrir_reservas(root))
 
     barra_menu.add_cascade(label='Consultas')

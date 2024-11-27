@@ -29,7 +29,7 @@ class Venta:
         self.total_vendido = total_vendido
         self.fecha = None
 
-def registrar_venta(venta):
+def registrar_venta(venta, descontar_inventario=True):
     conexion = ConexionDB()
 
     # Obtener el precio unitario del producto
@@ -44,24 +44,26 @@ def registrar_venta(venta):
     precio_unitario = producto[0]
     total_vendido = precio_unitario * venta.cantidad
 
-    # Verificar si hay suficiente cantidad en el inventario
-    consulta_cantidad = "SELECT cantidad FROM Productos WHERE id = ?"
-    conexion.cursor.execute(consulta_cantidad, (venta.producto_id,))
-    stock_disponible = conexion.cursor.fetchone()[0]
+    if descontar_inventario:
+        # Verificar si hay suficiente cantidad en el inventario
+        consulta_cantidad = "SELECT cantidad FROM Productos WHERE id = ?"
+        conexion.cursor.execute(consulta_cantidad, (venta.producto_id,))
+        stock_disponible = conexion.cursor.fetchone()[0]
 
-    if stock_disponible >= venta.cantidad:
-        # Registrar la venta
-        sql_venta = "INSERT INTO Ventas (producto_id, cantidad, total_vendido) VALUES (?, ?, ?)"
-        conexion.cursor.execute(sql_venta, (venta.producto_id, venta.cantidad, total_vendido))
+        if stock_disponible < venta.cantidad:
+            conexion.cerrar()
+            raise ValueError("No hay suficiente stock disponible.")
 
-        # Actualizar el stock del producto
+    # Registrar la venta
+    sql_venta = "INSERT INTO Ventas (producto_id, cantidad, total_vendido) VALUES (?, ?, ?)"
+    conexion.cursor.execute(sql_venta, (venta.producto_id, venta.cantidad, total_vendido))
+
+    # Actualizar el stock del producto solo si descontar_inventario es True
+    if descontar_inventario:
         sql_actualizar_stock = "UPDATE Productos SET cantidad = cantidad - ? WHERE id = ?"
         conexion.cursor.execute(sql_actualizar_stock, (venta.cantidad, venta.producto_id))
 
-        conexion.cerrar()
-    else:
-        conexion.cerrar()
-        raise ValueError("No hay suficiente stock disponible.")
+    conexion.cerrar()
     
 def listar():
     conexion = ConexionDB()
