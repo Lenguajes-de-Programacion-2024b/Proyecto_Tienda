@@ -52,14 +52,59 @@ class Pago:
 
 def registrar_pago(pago):
     conexion = ConexionDB()
+    cursor = conexion.cursor
 
     sql = """
         INSERT INTO Pagos (reserva_id, metodo_pago_id, medio_entrega, estado_pago, fecha_pago) 
         VALUES (?, ?, ?, ?, ?)
     """
-    conexion.cursor.execute(
+    cursor.execute(
         sql, (pago.reserva_id, pago.metodo_pago_id, pago.medio_entrega, pago.estado_pago, pago.fecha_pago)
     )
+
+    # Obtener el ID del pago recién registrado
+    cursor.execute("SELECT SCOPE_IDENTITY()")
+    pago_id = cursor.fetchone()[0]
+
+    # Registrar la venta automáticamente si no es "Contra entrega"
+    if pago.estado_pago == "Pagado":  # Esto ocurre si el método de pago no es "Contra entrega"
+        # Obtener la información de la reserva para registrar la venta
+        sql_reserva_info = """
+            SELECT r.producto_id, r.cantidad, r.cliente
+            FROM Reservas r
+            WHERE r.id = ?
+        """
+        cursor.execute(sql_reserva_info, (pago.reserva_id,))
+        reserva_info = cursor.fetchone()
+
+        if not reserva_info:
+            conexion.cerrar()
+            raise ValueError("La reserva asociada no existe o no es válida.")
+
+        producto_id, cantidad, cliente = reserva_info
+
+        # Obtener el precio unitario del producto
+        sql_precio_producto = "SELECT precio FROM Productos WHERE id = ?"
+        cursor.execute(sql_precio_producto, (producto_id,))
+        producto = cursor.fetchone()
+
+        if not producto:
+            conexion.cerrar()
+            raise ValueError("El producto relacionado con esta reserva no existe.")
+
+        precio_unitario = producto[0]
+        total_vendido = precio_unitario * cantidad
+
+        nueva_venta = Venta(
+            producto_id=producto_id,
+            cantidad=cantidad,
+            cliente=cliente,
+            metodo_pago_id=pago.metodo_pago_id,
+            total_vendido=total_vendido
+        )
+
+        # Registrar la venta SIN descontar del inventario (porque la reserva ya lo hizo)
+        registrar_venta(nueva_venta, descontar_inventario=False)
 
     conexion.cerrar()
 
