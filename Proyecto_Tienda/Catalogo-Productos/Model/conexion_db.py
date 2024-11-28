@@ -5,9 +5,9 @@ class ConexionDB:
         # Configuración de la conexión
         self.dsn = (
             'DRIVER={ODBC Driver 17 for SQL Server};'
-            'SERVER=(localdb)\\server;'
-            'DATABASE=DB_Python;'
-            'UID=sa;'
+            'SERVER=SQL5112.site4now.net;'
+            'DATABASE=db_aae65a_mvcsample;'
+            'UID=db_aae65a_mvcsample_admin;'
             'PWD=Rambo#12345;'
         )
         # Estableciendo la conexión y creando el cursor
