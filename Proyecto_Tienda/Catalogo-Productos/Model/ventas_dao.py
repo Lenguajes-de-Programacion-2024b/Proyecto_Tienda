@@ -9,23 +9,28 @@ def crear_tabla_ventas():
         IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Ventas')
         BEGIN
             CREATE TABLE Ventas (
-                id INT PRIMARY KEY IDENTITY(1,1),
-                producto_id INT,
-                cantidad INT,
-                fecha DATETIME DEFAULT GETDATE(),
-                total_vendido DECIMAL(10, 2),
-                FOREIGN KEY (producto_id) REFERENCES Productos(id)
-            )
+            id INT PRIMARY KEY IDENTITY(1,1),
+            producto_id INT,
+            cantidad INT,
+            cliente NVARCHAR(100),
+            metodo_pago_id INT,
+            fecha DATETIME DEFAULT GETDATE(),
+            total_vendido DECIMAL(10, 2),
+            FOREIGN KEY (producto_id) REFERENCES Productos(id),
+            FOREIGN KEY (metodo_pago_id) REFERENCES MetodosPago(id)
+        )
         END
     ''')
     
     conexion.cerrar()
 
 class Venta:
-    def __init__(self, producto_id, cantidad, total_vendido=None):
+    def __init__(self, producto_id, cantidad, cliente, metodo_pago_id, total_vendido=None):
         self.id = None
         self.producto_id = producto_id
         self.cantidad = cantidad
+        self.cliente = cliente
+        self.metodo_pago_id = metodo_pago_id
         self.total_vendido = total_vendido
         self.fecha = None
 
@@ -54,14 +59,16 @@ def registrar_venta(venta, descontar_inventario=True):
             conexion.cerrar()
             raise ValueError("No hay suficiente stock disponible.")
 
-    # Registrar la venta
-    sql_venta = "INSERT INTO Ventas (producto_id, cantidad, total_vendido) VALUES (?, ?, ?)"
-    conexion.cursor.execute(sql_venta, (venta.producto_id, venta.cantidad, total_vendido))
-
-    # Actualizar el stock del producto solo si descontar_inventario es True
-    if descontar_inventario:
+        # Actualizar el stock si es necesario
         sql_actualizar_stock = "UPDATE Productos SET cantidad = cantidad - ? WHERE id = ?"
         conexion.cursor.execute(sql_actualizar_stock, (venta.cantidad, venta.producto_id))
+
+    # Registrar la venta con metodo_pago_id
+    sql_venta = """
+        INSERT INTO Ventas (producto_id, cantidad, cliente, metodo_pago_id, total_vendido) 
+        VALUES (?, ?, ?, ?, ?)
+    """
+    conexion.cursor.execute(sql_venta, (venta.producto_id, venta.cantidad, venta.cliente, venta.metodo_pago_id, total_vendido))
 
     conexion.cerrar()
     
@@ -76,15 +83,15 @@ def listar():
 def listar_ventas():
     conexion = ConexionDB()
     sql = '''
-        SELECT v.id, p.nombre, v.cantidad, v.fecha, v.total_vendido
+        SELECT v.id, p.nombre, v.cantidad, v.cliente, m.descripcion AS metodo_pago, v.fecha, v.total_vendido
         FROM Ventas v
         INNER JOIN Productos p ON v.producto_id = p.id
+        INNER JOIN MetodosPago m ON v.metodo_pago_id = m.id
     '''
     conexion.cursor.execute(sql)
     ventas = conexion.cursor.fetchall()
     conexion.cerrar()
     return ventas
-
 
 def eliminar_venta(id):
     conexion = ConexionDB()
@@ -137,3 +144,11 @@ def obtener_rango(periodo, fecha=None):
     else:
         raise ValueError("Periodo no reconocido.")
     return fecha_inicio.strftime("%Y-%m-%d"), fecha_fin.strftime("%Y-%m-%d")
+
+def listar_metodos_pago_para_ventas():
+    conexion = ConexionDB()
+    sql = "SELECT id, descripcion FROM MetodosPago WHERE descripcion != 'Contra entrega'"
+    conexion.cursor.execute(sql)
+    metodos = conexion.cursor.fetchall()
+    conexion.cerrar()
+    return metodos

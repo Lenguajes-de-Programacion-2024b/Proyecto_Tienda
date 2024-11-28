@@ -119,9 +119,9 @@ class PagosFrame(tk.Frame):
             from Model.pagos_dao import actualizar_estado_pago
             actualizar_estado_pago(pago_id)
 
-            # Refrescar la tabla
+            # Refrescar la tabla de pagos
             self.tabla_pagos()
-            messagebox.showinfo("Éxito", "El estado del pago se actualizó a 'Pagado'.")
+            messagebox.showinfo("Éxito", "El estado del pago se actualizó a 'Pagado'. La venta se registró correctamente.")
         except IndexError:
             messagebox.showerror("Error", "Debe seleccionar un pago.")
         except Exception as e:
