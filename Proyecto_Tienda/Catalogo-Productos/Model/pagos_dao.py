@@ -1,4 +1,6 @@
 from .conexion_db import ConexionDB
+from Model.ventas_dao import Venta, registrar_venta
+
 
 def crear_tabla_pagos():
     conexion = ConexionDB()
@@ -87,13 +89,51 @@ def actualizar_estado_pago(pago_id):
     conexion = ConexionDB()
     cursor = conexion.cursor
 
-    # Actualizar el estado del pago a "Pagado" y registrar la fecha de pago
-    sql = """
+    # Obtener la información del pago y reserva relacionada
+    sql_pago_info = """
+        SELECT p.reserva_id, p.metodo_pago_id, r.cliente, r.producto_id, r.cantidad
+        FROM Pagos p
+        INNER JOIN Reservas r ON p.reserva_id = r.id
+        WHERE p.id = ?
+    """
+    cursor.execute(sql_pago_info, (pago_id,))
+    pago_info = cursor.fetchone()
+
+    if not pago_info:
+        conexion.cerrar()
+        raise ValueError("El pago no existe o no está relacionado con una reserva válida.")
+
+    reserva_id, metodo_pago_id, cliente, producto_id, cantidad = pago_info
+
+    # Actualizar el estado del pago a "Pagado" y registrar la fecha
+    sql_actualizar_pago = """
         UPDATE Pagos 
         SET estado_pago = 'Pagado', fecha_pago = GETDATE() 
         WHERE id = ?
     """
-    cursor.execute(sql, (pago_id,))
+    cursor.execute(sql_actualizar_pago, (pago_id,))
+
+    # Registrar la venta asociada a este pago SIN descontar del inventario
+    sql_precio_producto = "SELECT precio FROM Productos WHERE id = ?"
+    cursor.execute(sql_precio_producto, (producto_id,))
+    producto = cursor.fetchone()
+
+    if not producto:
+        conexion.cerrar()
+        raise ValueError("El producto relacionado con esta reserva no existe.")
+
+    precio_unitario = producto[0]
+    total_vendido = precio_unitario * cantidad
+
+    nueva_venta = Venta(
+        producto_id=producto_id,
+        cantidad=cantidad,
+        cliente=cliente,
+        metodo_pago_id=metodo_pago_id,
+        total_vendido=total_vendido
+    )
+    registrar_venta(nueva_venta, descontar_inventario=False)  # No descontar del inventario
+
     conexion.cerrar()
 
 def listar_reservas_confirmadas():
