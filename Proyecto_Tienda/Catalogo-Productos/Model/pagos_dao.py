@@ -15,7 +15,8 @@ def crear_tabla_pagos():
             INSERT INTO MetodosPago (descripcion) VALUES
             ('Contra entrega'),
             ('Tarjeta'),
-            ('Transferencia')
+            ('Transferencia'),
+            ('Efectivo')
         END
     ''')
 
