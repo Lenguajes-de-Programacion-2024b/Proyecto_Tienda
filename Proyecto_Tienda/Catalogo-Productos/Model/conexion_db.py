@@ -18,3 +18,15 @@ class ConexionDB:
         # Guardar y cerrar la conexión
         self.conexion.commit()
         self.conexion.close()
+
+    def rollback(self):
+        """
+        Revierte los cambios realizados en la base de datos.
+        """
+        self.conexion.rollback()
+
+    def commit(self):
+        """
+        Confirma los cambios realizados en la base de datos.
+        """
+        self.conexion.commit()
