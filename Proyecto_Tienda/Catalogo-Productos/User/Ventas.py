@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, Toplevel
 from Model.ventas_dao import Venta, registrar_venta, listar_ventas, listar, eliminar_venta
 
 class VentasFrame(tk.Frame):
@@ -7,6 +7,13 @@ class VentasFrame(tk.Frame):
         super().__init__(root)
         self.root = root
         self.pack(fill='both', expand=True)
+
+        # Lista temporal para manejar múltiples productos
+        self.productos_seleccionados = []
+
+        # Ventana emergente para productos seleccionados
+        self.ventana_productos = None
+
         self.campos_ventas()
         self.tabla_ventas()
 
@@ -38,7 +45,6 @@ class VentasFrame(tk.Frame):
         self.entry_cliente.config(width=50, font=('Arial', 12))
         self.entry_cliente.grid(row=2, column=1, padx=10, pady=10)
 
-        # Método de pago
         self.label_metodo_pago = tk.Label(self, text='Método de Pago:')
         self.label_metodo_pago.config(font=('Arial', 12, 'bold'))
         self.label_metodo_pago.grid(row=3, column=0, padx=10, pady=10)
@@ -48,66 +54,136 @@ class VentasFrame(tk.Frame):
         self.actualizar_metodos_pago()
         self.combobox_metodo_pago.grid(row=3, column=1, padx=10, pady=10)
 
+        # Botón agregar producto
+        self.boton_agregar_producto = tk.Button(self, text="Agregar Producto", command=self.agregar_producto)
+        self.boton_agregar_producto.config(width=20, font=('Arial', 12, 'bold'), fg='#fcf9f3', bg='#1461d2', cursor='hand2')
+        self.boton_agregar_producto.grid(row=4, column=0, padx=10, pady=10)
+
         # Botón registrar venta
         self.boton_registrar_venta = tk.Button(self, text="Registrar Venta", command=self.registrar_venta)
         self.boton_registrar_venta.config(width=20, font=('Arial', 12, 'bold'), fg='#fcf9f3', bg='#1461d2', cursor='hand2')
-        self.boton_registrar_venta.grid(row=4, column=0, columnspan=2, padx=10, pady=10)
+        self.boton_registrar_venta.grid(row=4, column=1, padx=10, pady=10)
 
     def actualizar_metodos_pago(self):
         from Model.ventas_dao import listar_metodos_pago_para_ventas
         metodos = listar_metodos_pago_para_ventas()
-        self.metodos_pago = {m[1]: m[0] for m in metodos}  # Diccionario {descripcion: id}
+        self.metodos_pago = {m[1]: m[0] for m in metodos}
         self.combobox_metodo_pago['values'] = list(self.metodos_pago.keys())
 
     def actualizar_productos(self):
         productos = listar()
         self.combobox_producto['values'] = [f"{p[0]} - {p[1]}" for p in productos]
 
-    def registrar_venta(self):
+    def abrir_ventana_productos(self):
+        """
+        Abre una ventana emergente para mostrar los productos seleccionados.
+        """
+        if self.ventana_productos is not None and tk.Toplevel.winfo_exists(self.ventana_productos):
+            self.ventana_productos.lift()
+            return
+
+        self.ventana_productos = Toplevel(self)
+        self.ventana_productos.title("Productos Seleccionados")
+        self.ventana_productos.geometry("400x300")
+        self.ventana_productos.resizable(False, False)
+
+        self.tabla_productos = ttk.Treeview(self.ventana_productos, columns=('Producto', 'Cantidad'), show='headings')
+        self.tabla_productos.heading('Producto', text='Producto')
+        self.tabla_productos.heading('Cantidad', text='Cantidad')
+        self.tabla_productos.pack(fill='both', expand=True)
+
+        self.actualizar_tabla_productos_seleccionados()
+
+    def agregar_producto(self):
+        """
+        Agrega un producto a la lista temporal y muestra la ventana emergente.
+        """
         try:
             producto_id_texto = self.producto_id.get()
             cantidad = int(self.cantidad_venta.get())
-            cliente = self.cliente.get().strip()
-            metodo_pago_desc = self.metodo_pago.get()
 
             if not producto_id_texto:
                 raise ValueError("Debe seleccionar un producto.")
             if cantidad <= 0:
                 raise ValueError("La cantidad debe ser mayor a 0.")
-            if not cliente:
-                raise ValueError("Debe ingresar el nombre del cliente.")
-            if not metodo_pago_desc:
-                raise ValueError("Debe seleccionar un método de pago.")
 
             producto_id = int(producto_id_texto.split(" - ")[0])
-            metodo_pago_id = self.metodos_pago.get(metodo_pago_desc)
+            producto_nombre = producto_id_texto.split(" - ")[1]
 
-            nueva_venta = Venta(producto_id, cantidad, cliente, metodo_pago_id)
-            registrar_venta(nueva_venta)
+            self.productos_seleccionados.append({
+                'producto_id': producto_id,
+                'nombre': producto_nombre,
+                'cantidad': cantidad
+            })
 
-            self.tabla_ventas()
+            self.abrir_ventana_productos()
+            self.actualizar_tabla_productos_seleccionados()
+
             self.cantidad_venta.set('')
             self.producto_id.set('')
-            self.cliente.set('')
-            self.metodo_pago.set('')
         except ValueError as e:
             messagebox.showerror("Error", str(e))
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un error: {e}")
 
+    def actualizar_tabla_productos_seleccionados(self):
+        """
+        Actualiza la tabla de productos en la ventana emergente.
+        """
+        if self.ventana_productos and hasattr(self, 'tabla_productos'):
+            for item in self.tabla_productos.get_children():
+                self.tabla_productos.delete(item)
+
+            for producto in self.productos_seleccionados:
+                self.tabla_productos.insert('', 'end', values=(producto['nombre'], producto['cantidad']))
+
+    def registrar_venta(self):
+        """
+        Registra los productos seleccionados como una venta y cierra la ventana emergente.
+        """
+        try:
+            cliente = self.cliente.get().strip()
+            metodo_pago_desc = self.metodo_pago.get()
+
+            if not cliente:
+                raise ValueError("Debe ingresar el nombre del cliente.")
+            if not metodo_pago_desc:
+                raise ValueError("Debe seleccionar un método de pago.")
+            if not self.productos_seleccionados:
+                raise ValueError("Debe agregar al menos un producto.")
+
+            metodo_pago_id = self.metodos_pago.get(metodo_pago_desc)
+
+            from Model.ventas_dao import Venta, registrar_venta
+
+            for producto in self.productos_seleccionados:
+                nueva_venta = Venta(
+                    producto_id=producto['producto_id'],
+                    cantidad=producto['cantidad'],
+                    cliente=cliente,
+                    metodo_pago_id=metodo_pago_id
+                )
+                registrar_venta(nueva_venta)
+
+            messagebox.showinfo("Éxito", "La venta se registró correctamente.")
+            self.productos_seleccionados = []
+            if self.ventana_productos:
+                self.ventana_productos.destroy()
+                self.ventana_productos = None
+            self.tabla_ventas()
+        except Exception as e:
+            messagebox.showerror("Error", f"Ocurrió un error: {e}")
+
     def tabla_ventas(self):
-        # Destruir solo los widgets relacionados con la tabla y el scroll
         for widget in self.winfo_children():
             if isinstance(widget, ttk.Treeview) or isinstance(widget, ttk.Scrollbar):
                 widget.destroy()
 
-        # Crear el estilo para la tabla con bordes y centrado
         style = ttk.Style()
         style.configure("Treeview", borderwidth=1, relief="solid", rowheight=30, font=('Arial', 12))
         style.configure("Treeview.Heading", font=('Arial', 12, 'bold'), height=30)
         style.map("Treeview", background=[("selected", "#0078d7")], foreground=[("selected", "white")])
 
-        # Crear la tabla
         self.Lista_Ventas = listar_ventas()
         self.tabla = ttk.Treeview(
             self, columns=('Producto', 'Cantidad', 'Cliente', 'Método de Pago', 'Fecha', 'Total Vendido'), style="Treeview"
@@ -135,39 +211,30 @@ class VentasFrame(tk.Frame):
             total_vendido = f"${v[6]:,.0f}".replace(',', '.')
             self.tabla.insert('', 'end', text=v[0], values=(v[1], v[2], v[3], v[4], fecha_formateada, total_vendido))
 
-        # Scroll vertical
         self.scroll = ttk.Scrollbar(self, orient='vertical', command=self.tabla.yview)
         self.tabla.configure(yscrollcommand=self.scroll.set)
         self.scroll.grid(row=5, column=2, sticky='ns', padx=(0, 10))
 
-        # Botón Eliminar Venta
         self.boton_eliminar_venta = tk.Button(self, text="Eliminar Venta", command=self.eliminar_venta)
         self.boton_eliminar_venta.config(
             width=20, font=('Arial', 12, 'bold'), fg='#fcf9f3', bg='#e30b3c', cursor='hand2'
         )
         self.boton_eliminar_venta.grid(row=6, column=0, columnspan=2, padx=10, pady=10)
 
-        # Ajustar el espacio
         self.grid_rowconfigure(5, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
     def eliminar_venta(self):
         try:
-            # Obtener la venta seleccionada en la tabla
             venta_id = self.tabla.item(self.tabla.selection())['text']
-
             if not venta_id:
                 raise ValueError("Debe seleccionar una venta para eliminar.")
 
-            # Confirmar eliminación
             confirmacion = messagebox.askyesno("Confirmación", "¿Está seguro de eliminar esta venta?")
             if not confirmacion:
                 return
 
-            # Llamar a la función del modelo para eliminar
             eliminar_venta(venta_id)
-
-            # Actualizar la tabla de ventas
             self.tabla_ventas()
             messagebox.showinfo("Éxito", "La venta se eliminó correctamente.")
         except IndexError:

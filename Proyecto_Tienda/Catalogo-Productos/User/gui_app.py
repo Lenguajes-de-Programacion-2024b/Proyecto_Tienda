@@ -5,7 +5,7 @@ from Model.reserva_dao import crear_tabla_reservas
 from Model.pagos_dao import crear_tabla_pagos
 from User.Productos import ProductosFrame
 from User.Ventas import VentasFrame
-from User.Informes_ventas import InformeVentas
+from User.informes_ventas import InformeVentas
 from User.Reservas import ReservasFrame
 from User.Pagos import PagosFrame
 

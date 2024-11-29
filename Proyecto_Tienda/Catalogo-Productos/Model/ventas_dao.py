@@ -71,6 +71,16 @@ def registrar_venta(venta, descontar_inventario=True):
     conexion.cursor.execute(sql_venta, (venta.producto_id, venta.cantidad, venta.cliente, venta.metodo_pago_id, total_vendido))
 
     conexion.cerrar()
+
+def registrar_venta_multiple(ventas):
+    """
+    Registra múltiples productos para una venta. 
+    Cada producto se registra como una venta independiente.
+    
+    :param ventas: Lista de objetos Venta.
+    """
+    for venta in ventas:
+        registrar_venta(venta)
     
 def listar():
     conexion = ConexionDB()
