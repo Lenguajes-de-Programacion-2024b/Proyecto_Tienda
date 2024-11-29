@@ -20,7 +20,6 @@ def crear_tabla_reservas():
         END
     ''')
 
-    # Opcional: Crear tabla de estados si no existe
     cursor.execute('''
         IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'EstadosReservas')
         BEGIN
